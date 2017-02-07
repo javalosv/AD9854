@@ -791,17 +791,18 @@ BigNumber DDS_function::_pow64bits(int a, int b){
 byte* DDS_function::_freq2binary(float freq, float mclock) {
     DDS_function _x;
     static byte bytevalue[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+    
     BigNumber DesiredOut = freq;
     BigNumber SYSCLK = mclock;
     BigNumber a = 0;
     BigNumber b = 256; // 2 bytes=16 bits
     a = DesiredOut * _x._pow64bits(2, 48)/ SYSCLK;
-    int n = 0;
+    int n = 5;
     while (a != 0) 
     {
     bytevalue[n] =  byte(a % b);
     a =  a / b;
-    n++;
+    n--;
     }
     return bytevalue;
 }
