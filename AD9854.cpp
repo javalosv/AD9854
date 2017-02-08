@@ -1,6 +1,5 @@
 #include "AD9854.h"
 #include "BigNumber.h"
-
 static char controlRegister[4];
 static char read_spi_data[6];
  
@@ -769,15 +768,20 @@ static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ",
 // char* DDS::getModeStr(){
     
 //     if (this->cr_mode > 4)
-//         return MODULATION[5];
     
 //     return MODULATION[this->cr_mode];   
 // }
- 
+DDS::DDS(){
+
+}
+
 DDS_function::DDS_function(){
    
 }
 
+void DDS::reset(int IO_RESET, int SPI_delay ){
+ 
+}
 
 BigNumber DDS_function::_pow64bits(int a, int b){
     BigNumber result = 1;

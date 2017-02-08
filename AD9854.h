@@ -3,6 +3,7 @@
 
 #include "BigNumber.h"
 
+
 #define SPI_BITS 8
 #define SPI_MODE 0
 #define SPI_FREQ 1000000
@@ -64,9 +65,10 @@ class DDS{
 	public:
 		bool isConfig;
  
-		
+		DDS();
 		//DDS(SPI *spi_dev, DigitalOut *mreset, DigitalOut *outramp, DigitalOut *spmode, DigitalOut *cs, DigitalOut *ioreset, DigitalInOut *updclk);
 		int init();
+		void reset(int x, int y);
 		// int reset();
 		// int scanIOUpdate();
 		// int find();
