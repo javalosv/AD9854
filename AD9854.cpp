@@ -5,6 +5,7 @@
 
 static char controlRegister[4];
 static char read_spi_data[6];
+
 static char* KO_MSG = "KO";
 static char* OK_MSG = "OK";
 static char* NI_MSG = "NI";
