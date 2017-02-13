@@ -1,15 +1,15 @@
 #include "AD9854.h"
 #include "BigNumber.h"
+#include "Energia.h"
+#include <SPI.h>
+
 static char controlRegister[4];
 static char read_spi_data[6];
- 
 static char* KO_MSG = "KO";
 static char* OK_MSG = "OK";
 static char* NI_MSG = "NI";
- 
 static char* ZERO_MSG = "\x00";
 static char* ONE_MSG = "\x01";
- 
 static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ", "Chirp        ", "BPSK         ", "Not Allowed  "};
  
 // DDS::DDS(SPI *spi_dev, DigitalOut *mreset, DigitalOut *outramp, DigitalOut *spmode, DigitalOut *cs, DigitalOut *ioreset, DigitalInOut *updclk){
@@ -771,17 +771,25 @@ static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ",
     
 //     return MODULATION[this->cr_mode];   
 // }
-DDS::DDS(){
+DDS::DDS(int CS, int UDCLK, int IO_RESET, int MRESET){
+_cs=CS;
+_udclk=UDCLK;
+_io_reset=IO_RESET;
+_mreset=MRESET;
+}
 
+void DDS::reset(int reset_0){
+reset_0=_mreset;
+digitalWrite(reset_0,HIGH);
+delay(1);
+digitalWrite(reset_0,LOW);
+delay(1);
 }
 
 DDS_function::DDS_function(){
    
 }
 
-void DDS::reset(int IO_RESET, int SPI_delay ){
- 
-}
 
 BigNumber DDS_function::_pow64bits(int a, int b){
     BigNumber result = 1;
@@ -792,9 +800,9 @@ BigNumber DDS_function::_pow64bits(int a, int b){
     return result;
 }
 
-byte* DDS_function::_freq2binary(float freq, float mclock) {
+char* DDS_function::_freq2binary(float freq, float mclock) {
     DDS_function _x;
-    static byte bytevalue[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+    static char bytevalue[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
     
     BigNumber DesiredOut = freq;
     BigNumber SYSCLK = mclock;

@@ -2,6 +2,8 @@
 #define        AD9854_ISP_DRIVER
 
 #include "BigNumber.h"
+#include "Energia.h"
+#include <SPI.h>
 
 
 #define SPI_BITS 8
@@ -44,6 +46,10 @@ class DDS{
 		double          factor_freq1;
 		double          factor_freq2;
 		
+		int 			_cs;
+		int 			_udclk;
+		int 			_io_reset;
+		int 			_mreset;
 		//SPI             *spi_device;
 		//DDS I/O
 		// DigitalOut      *dds_mreset;
@@ -65,10 +71,10 @@ class DDS{
 	public:
 		bool isConfig;
  
-		DDS();
+		DDS(int, int, int, int);
 		//DDS(SPI *spi_dev, DigitalOut *mreset, DigitalOut *outramp, DigitalOut *spmode, DigitalOut *cs, DigitalOut *ioreset, DigitalInOut *updclk);
 		int init();
-		void reset(int x, int y);
+		void reset(int );
 		// int reset();
 		// int scanIOUpdate();
 		// int find();
@@ -108,7 +114,7 @@ class DDS{
 class DDS_function{
 	public:
 		DDS_function();
-		BigNumber _pow64bits(int a, int b);
-		byte *_freq2binary(float freq, float mclock);
+		BigNumber _pow64bits(int , int );
+		char* _freq2binary(float , float );
 };
 #endif
