@@ -13,28 +13,60 @@ static char* ONE_MSG = "\x01";
 static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ", "Chirp        ", "BPSK         ", "Not Allowed  "};
  
 
- DDS::DDS(int CS, int UDCLK, int IO_RESET, int MRESET, int SPI, int SPI_delay)
+ DDS::DDS(int CS, int UDCLK, int IO_RESET, int MRESET, int SPI_port, int SPI_delay)
 {
-	_cs=CS;
-	_udclk=UDCLK;
-	_io_reset=IO_RESET;
-	_mreset=MRESET;
+	_dds_cs=CS;
+	_dds_udclk=UDCLK;
+	_dds_io_reset=IO_RESET;
+	_dds_mreset=MRESET;
+	_spi_device=SPI_port;
 	_spi_delay=SPI_delay;
+}
 
-	pinMode(CS, OUTPUT);
-	pinMode(UDCLK, OUTPUT);
-	pinMode(IO_RESET, OUTPUT);
-	pinMode(MRESET, OUTPUT);
-	
-	//SPI.begin();
+int DDS::init()
+{
+	SPI.setModule(1);
+	SPI.setBitOrder(MSBFIRST);
+	SPI.begin();
+
+	pinMode(_dds_cs, OUTPUT);
+	pinMode(_dds_udclk, OUTPUT);
+	pinMode(_dds_io_reset, OUTPUT);
+	pinMode(_dds_mreset, OUTPUT);
+
+    // _clock = 60000000;        			// Work clock in MHz
+
+    // _ctrlreg_multiplier = 5;        	// Multiplier 4- 20
+    // _ctrlreg_mode = 0;              	// Single, FSK, Ramped FSK, Chirp, BPSK
+    
+    // _ctrlreg_qdac_pwdn = 0;         	// QDAC power down enabled: 0 -> disable
+    // _ctrlreg_ioupdclk = 0;          	// IO Update clock direction: 0 -> input,  1 -> output
+    // _ctrlreg_inv_sinc  = 0;         	// Sinc inverser filter enable: 0 -> enable
+    // _ctrlreg_osk_en = 1;            	// Enable Amplitude multiplier: 0 -> disabled
+    // _ctrlreg_osk_int = 0;           	// register/counter output shaped control: 0 -> register, 1 -> counter
+    // _ctrlreg_msb_lsb = 0;           	// msb/lsb bit first: 0 -> MSB, 1 -> LSB
+    // _ctrlreg_sdo = 1;               	// SDO pin active: 0 -> inactive
+     
+    // reset();
+   
+    // if (not writeControlRegister())
+    // {
+    //   	isConfig = false;
+    //     return false;
+    // }
+        
+   
+    // isConfig = true;
+    
+    // return true;
 
 }
 
 int DDS::reset()
 {
-	on(_mreset);
+	on(_dds_mreset);
 	delay(1);
-	off(_mreset);
+	off(_dds_mreset);
 	delay(1);
 
 	return 1;
@@ -42,21 +74,136 @@ int DDS::reset()
 
 int DDS::io_reset()
 {
-  	on(_io_reset);
+  	on(_dds_io_reset);
   	delayMicroseconds(_spi_delay);
-  	off(_io_reset);
+  	off(_dds_io_reset);
   	delayMicroseconds(_spi_delay);
 
 	return 1;
 }
+
+void DDS::on(int x) {
+  digitalWrite(x, HIGH);
+}
+
+void DDS::off(int x) {
+  digitalWrite(x, LOW);
+}
+
+char* DDS::readData(char addr, char ndata)
+{
+    // I/O reset
+    io_reset();
+
+    off(_dds_cs);
+
+    //Sending serial address
+    SPI.transfer((addr & 0x0F) | 0x80);
+    for(char i = 0; i < ndata; i++)
+    {
+        delayMicroseconds(_spi_delay);
+        read_spi_data[i] =SPI.transfer(0x00);
+    }
+    
+   	on(_dds_cs);
+    
+    return read_spi_data;
+    
+}
+
+int DDS::writeData(char addr, char ndata, const char* data){
+
+    off(_dds_udclk);
+   	io_reset();
+	off(_dds_cs);
+
+    SPI.transfer(addr & 0x0F);
+
+    for(char i = 0; i < ndata; i++)
+    {
+        delayMicroseconds(_spi_delay);
+        SPI.transfer(data[i]);
+    }
+
+    on(_dds_cs);
+    delayMicroseconds(10);
+    on(_dds_udclk);
+    delayMicroseconds(10);
+    off(_dds_udclk);
+    delayMicroseconds(10);
+	
+    return 1;
+}
+
+int DDS::writeControlRegister(){
+	
+    bool success;
+    char* write_spi_data;
+    char* read_spi_data;
+    char addr = 0x07, ndata = 4;
+	
+    write_spi_data = getControlRegister();
+	
+    success = writeData(addr, ndata, write_spi_data);
+   
+    //dds_updclk->output();
+	
+    delayMicroseconds(100);
+    on(_dds_udclk);
+    delayMicroseconds(10);
+    off(_dds_udclk);
+    delayMicroseconds(10);
+	
+    read_spi_data = readData(addr, ndata);
+	
+    success = true;
+	
+    for(char i = 0; i < ndata; i++)
+    {
+        if (write_spi_data[i] != read_spi_data[i])
+        {
+            success = false;
+            break;
+        }
+    }
+	
+    return success;
+}   
+
+char* DDS::getControlRegister()
+{
+    
+    bool pll_range = 0;
+    bool pll_bypass = 1;
+    
+    if (_ctrlreg_multiplier >= 4){
+        pll_bypass = 0;
+    }
+ 
+    if (_clock >= 200){
+        pll_range = 1;
+    }
+       
+    controlRegister[0] = 0x10 + _ctrlreg_qdac_pwdn*4;
+    controlRegister[1] = pll_range*64 + pll_bypass*32 + (_ctrlreg_multiplier & 0x1F);
+    controlRegister[2] = (_ctrlreg_mode & 0x07)*2 + _ctrlreg_ioupdclk;
+    controlRegister[3] = _ctrlreg_inv_sinc*64 + _ctrlreg_osk_int*32 + _ctrlreg_osk_int*16 + _ctrlreg_msb_lsb*2 + _ctrlreg_sdo;
+    
+    return controlRegister;
+    
+}
+/*
+########################################################################
+########################################################################
+########################################################################
+*/
 
 DDS_function::DDS_function()
 {
 	BigNumber::begin(); 
 }
 
-
-BigNumber DDS_function::_pow64bits(int a, int b)
+BigNumber DDS_function::pow64bits(int a, int b)
 {
 	BigNumber result = 1;
 	BigNumber base = a;
@@ -67,7 +214,7 @@ BigNumber DDS_function::_pow64bits(int a, int b)
 	return result;
 }
 
-char* DDS_function::_freq2binary(float freq, float mclock) 
+char* DDS_function::freq2binary(float freq, float mclock) 
 {
 	DDS_function _x;
 	static char bytevalue[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
@@ -76,122 +223,30 @@ char* DDS_function::_freq2binary(float freq, float mclock)
 	BigNumber SYSCLK = mclock;
 	BigNumber a = 0;
 	BigNumber b = 256; // 2 bytes=16 bits
-	a = DesiredOut * _x._pow64bits(2, 48)/ SYSCLK;
+	a = DesiredOut * _x.pow64bits(2, 48)/ SYSCLK;
 	int n = 5;
 	while (a != 0) 
 	{
-	bytevalue[n] =  byte(a % b);
-	a =  a / b;
-	n--;
+		bytevalue[n] =  byte(a % b);
+		a =  a / b;
+		n--;
 	}
 	return bytevalue;
 }
 
-void DDS::on(int x) {
-  digitalWrite(x, HIGH);
-}
+void DDS_function::print(char* msg){
 
-void DDS::off(int x) {
-  digitalWrite(x, LOW);
+	int x=strlen(msg);
+	Serial.print("[");
+	for (int i=0; i<x-1;i++)
+	{
+		Serial.print(msg[i], HEX);
+	 	Serial.print(", ");
+	}
+	Serial.print(msg[x-1], HEX);
+	Serial.println("]");
 }
-// DDS::DDS(SPI *spi_dev, DigitalOut *mreset, DigitalOut *outramp, DigitalOut *spmode, DigitalOut *cs, DigitalOut *ioreset, DigitalInOut *updclk){
 	
-//     spi_device      = spi_dev;
-	
-//     dds_mreset      = mreset;
-//     dds_outramp     = outramp;
-//     dds_sp_mode     = spmode;
-//     dds_cs          = cs;
-//     dds_io_reset    = ioreset;
-//     dds_updclk      = updclk;
-	
-//     dds_updclk->input();
-//     *dds_sp_mode = 0;
-//     *dds_cs = 1;
-//     *dds_outramp = 0;
-	
-//     cmd_answer = NULL;
-//     cmd_answer_len = 0;
-	
-//     spi_device->format(SPI_BITS, SPI_MODE);
-//     spi_device->frequency(SPI_FREQ);
-	
-//     this->isConfig = false;
-	
-// }
-	
-// int DDS::__writeData(char addr, char ndata, const char* data){
-	
-//     // I/O reset
-//     *dds_updclk = 0;
-//     *dds_io_reset = 1;
-//     wait_us(10);
-//     *dds_io_reset = 0;
-//     wait_us(10);
-	
-//     *dds_cs = 0;
-	
-//     //Sending serial address
-//     //printf("\r\nWriting Addr = %d", addr);
-//     spi_device->write(addr & 0x0F);
-	
-//     for(char i = 0; i < ndata; i++)
-//     {
-//         wait_us(150);
-//         spi_device->write(data[i]);
-//     }
-	   
-//     *dds_cs = 1;
-//     /*
-//     for(char i = 0; i < ndata; i++)
-//     {
-//         printf("\tData[%d] = 0x%x", i, data[i]);
-//     }
-//     */
-	
-	
-//     wait_us(10);
-//     *dds_updclk = 1;
-//     wait_us(10);
-//     *dds_updclk = 0;
-//     wait_us(10);
-	
-//     return 1;
-// }
- 
- 
-// char* DDS::__readData(char addr, char ndata){
-	
-//     // I/O reset
-//     *dds_io_reset = 1;
-//     wait_us(10);
-//     *dds_io_reset = 0;
-//     wait_us(10);
-	
-//     *dds_cs = 0;
-	
-//     //Sending serial address
-//     //printf("\r\nReading Addr = %d", addr);
-//     spi_device->write((addr & 0x0F) | 0x80);
-	
-//     for(char i = 0; i < ndata; i++)
-//     {
-//         wait_us(150);
-//         read_spi_data[i] = spi_device->write(0x00);
-//     }
-	
-//     *dds_cs = 1;
-//     /*
-//     for(char i = 0; i < ndata; i++)
-//     {
-//         printf("\r\nData[%d] = 0x%x", i, read_spi_data[i]);
-//     } 
-//     */
-	
-//     wait_us(10);
-	
-//     return read_spi_data;
-//     }
  
 // int DDS::__writeDataAndVerify(char addr, char ndata, const char* wr_spi_data, SerialDriver *screen){
 	
@@ -251,43 +306,7 @@ void DDS::off(int x) {
 	
 //     }
 	
-// int DDS::__writeControlRegister(){
-	
-//     bool            success;
-//     char*  wr_spi_data;
-//     char*  rd_spi_data;
-//     char   addr = 0x07, ndata = 4;
-	
-//     wr_spi_data = this->__getControlRegister();
-	
-//     success = this->__writeData(addr, ndata, wr_spi_data);
-	
-//     ////printf("\r\nChanging UPD_CLK as an OUTPUT ...");
-//     dds_updclk->output();
-	
-//     wait_us(100);
-//     *dds_updclk = 1;
-//     wait_us(10);
-//     *dds_updclk = 0;
-//     wait_us(10);
-	
-//     rd_spi_data = this->__readData(addr, ndata);
-	
-//     success = true;
-	
-//     for(char i = 0; i < ndata; i++)
-//     {
-//         if (wr_spi_data[i] != rd_spi_data[i])
-//         {
-//             success = false;
-//             break;
-//         }
-//     }
-	
-//     return success;
-// }   
- 
-					
+				
 // int DDS::reset(){
 	
 //     // Master reset

@@ -24,62 +24,63 @@
  
 class DDS{
 	private:
-		float           clock;              // Work frequency in MHz
-		char            cr_multiplier;      // Multiplier 4- 20
-		char            cr_mode;            // Single, FSK, Ramped FSK, Chirp, BPSK
-		bool            cr_qdac_pwdn;       // Q DAC power down enable: 0 -> disable
-		bool            cr_ioupdclk;        // IO Update clock enable: 0 -> input
-		bool            cr_inv_sinc;        // Inverse sinc filter enable: 0 -> enable
-		bool            cr_osk_en;          // Enable AM: 0 -> disabled
-		bool            cr_osk_int;       	// ext/int output shaped control: 0 -> external
-		bool            cr_msb_lsb;     	// msb/lsb bit first: 0 -> MSB
-		bool            cr_sdo;        		// SDO pin active: 0 -> inactive.
- 
-		char            freq1[6];
-		char            freq2[6];
-		char            phase1[2];
-		char            phase2[2];       
-		char            amplitudeI[2];
-		char            amplitudeQ[2];
-		bool            rf_enabled;
-	   
-		double          factor_freq1;
-		double          factor_freq2;
+		float           _clock;              // Work frequency in MHz
 		
-		int 			_cs;
-		int 			_udclk;
-		int 			_io_reset;
-		int 			_mreset;
+		char            _ctrlreg_multiplier;      // Multiplier 4- 20
+		char            _ctrlreg_mode;            // Single, FSK, Ramped FSK, Chirp, BPSK
+		
+		bool            _ctrlreg_qdac_pwdn;       // Q DAC power down enable: 0 -> disable
+		bool            _ctrlreg_ioupdclk;        // IO Update clock enable: 0 -> input
+		bool            _ctrlreg_inv_sinc;        // Inverse sinc filter enable: 0 -> enable
+		bool            _ctrlreg_osk_en;          // Enable AM: 0 -> disabled
+		bool            _ctrlreg_osk_int;       	// ext/int output shaped control: 0 -> external
+		bool            _ctrlreg_msb_lsb;     	// msb/lsb bit first: 0 -> MSB
+		bool            _ctrlreg_sdo;        		// SDO pin active: 0 -> inactive.
+ 
+		char            _freq1[6];
+		char            _freq2[6];
+		char            _phase1[2];
+		char            _phase2[2];       
+		char            _amplitudeI[2];
+		char            _amplitudeQ[2];
+		bool            _rf_enabled;
+	   
+		double          _factor_freq1;
+		double          _factor_freq2;
+		
+		//DDS I/O
+		int 			_dds_cs;
+		int 			_dds_udclk;
+		int 			_dds_io_reset;
+		int 			_dds_mreset;
+		
+		//SPI 
 		int 			_spi_device;
 		int 			_spi_delay;
-		//SPI             *spi_device;
-		//DDS I/O
-		// DigitalOut      *dds_mreset;
-		// DigitalOut      *dds_outramp;
-		// DigitalOut      *dds_sp_mode;
-		// DigitalOut      *dds_cs;
-		// DigitalOut      *dds_io_reset;
-		// DigitalInOut    *dds_updclk;
-		
+
+			
 		// char*           cmd_answer;
 		// unsigned long   cmd_answer_len;
 		
-		// int __writeData(char addr, char ndata, const char* data);
-		// char* __readData(char addr, char ndata);
-		// int __writeDataAndVerify(char addr, char ndata, const char* wr_spi_data, SerialDriver *screen=NULL);
-		// char* __getControlRegister();
-		// int __writeControlRegister();
+		
 		
 	public:
-		bool isConfig;
- 
 		DDS(int, int, int, int, int, int );
-		//DDS(SPI *spi_dev, DigitalOut *mreset, DigitalOut *outramp, DigitalOut *spmode, DigitalOut *cs, DigitalOut *ioreset, DigitalInOut *updclk);
+		
 		int init();
 		int reset();
 		int io_reset();
+
 		void on(int);
 		void off(int);
+
+		bool isConfig;
+		
+		//int writeDataAndVerify(char addr, char ndata, const char* wr_spi_data, SerialDriver *screen=NULL);
+		char* getControlRegister();
+		int writeControlRegister();
+		int writeData(char, char, const char*);
+		char* readData(char, char);
 		// int scanIOUpdate();
 		// int find();
 		// char* rdMode();
@@ -116,9 +117,14 @@ class DDS{
 };
 
 class DDS_function{
-	public:
-		DDS_function();
-		BigNumber _pow64bits(int , int );
-		char* _freq2binary(float , float );
+private:
+
+public:
+	DDS_function();
+	BigNumber pow64bits(int, int );
+	char* freq2binary(float, float );
+	void print(char*);
+
 };
+
 #endif
