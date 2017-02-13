@@ -50,6 +50,8 @@ class DDS{
 		int 			_udclk;
 		int 			_io_reset;
 		int 			_mreset;
+		int 			_spi_device;
+		int 			_spi_delay;
 		//SPI             *spi_device;
 		//DDS I/O
 		// DigitalOut      *dds_mreset;
@@ -71,11 +73,13 @@ class DDS{
 	public:
 		bool isConfig;
  
-		DDS(int, int, int, int);
+		DDS(int, int, int, int, int, int );
 		//DDS(SPI *spi_dev, DigitalOut *mreset, DigitalOut *outramp, DigitalOut *spmode, DigitalOut *cs, DigitalOut *ioreset, DigitalInOut *updclk);
 		int init();
-		void reset(int );
-		// int reset();
+		int reset();
+		int io_reset();
+		void on(int);
+		void off(int);
 		// int scanIOUpdate();
 		// int find();
 		// char* rdMode();
