@@ -123,7 +123,7 @@ public:
 	DDS_function();
 	BigNumber pow64bits(int, int );
 	char* freq2binary(float, float );
-	void print(char*);
+	void print(char*, char);
 
 };
 

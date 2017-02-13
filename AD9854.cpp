@@ -34,31 +34,31 @@ int DDS::init()
 	pinMode(_dds_io_reset, OUTPUT);
 	pinMode(_dds_mreset, OUTPUT);
 
-    // _clock = 60000000;        			// Work clock in MHz
+    _clock = 60000000;        			// Work clock in MHz
 
-    // _ctrlreg_multiplier = 5;        	// Multiplier 4- 20
-    // _ctrlreg_mode = 0;              	// Single, FSK, Ramped FSK, Chirp, BPSK
+    _ctrlreg_multiplier = 4;        	// Multiplier 4- 20
+    _ctrlreg_mode = 0;              	// Single, FSK, Ramped FSK, Chirp, BPSK
     
-    // _ctrlreg_qdac_pwdn = 0;         	// QDAC power down enabled: 0 -> disable
-    // _ctrlreg_ioupdclk = 0;          	// IO Update clock direction: 0 -> input,  1 -> output
-    // _ctrlreg_inv_sinc  = 0;         	// Sinc inverser filter enable: 0 -> enable
-    // _ctrlreg_osk_en = 1;            	// Enable Amplitude multiplier: 0 -> disabled
-    // _ctrlreg_osk_int = 0;           	// register/counter output shaped control: 0 -> register, 1 -> counter
-    // _ctrlreg_msb_lsb = 0;           	// msb/lsb bit first: 0 -> MSB, 1 -> LSB
-    // _ctrlreg_sdo = 1;               	// SDO pin active: 0 -> inactive
+    _ctrlreg_qdac_pwdn = 0;         	// QDAC power down enabled: 0 -> disable
+    _ctrlreg_ioupdclk = 0;          	// IO Update clock direction: 0 -> input,  1 -> output
+    _ctrlreg_inv_sinc  = 0;         	// Sinc inverser filter enable: 0 -> enable
+    _ctrlreg_osk_en = 1;            	// Enable Amplitude multiplier: 0 -> disabled
+    _ctrlreg_osk_int = 0;           	// register/counter output shaped control: 0 -> register, 1 -> counter
+    _ctrlreg_msb_lsb = 0;           	// msb/lsb bit first: 0 -> MSB, 1 -> LSB
+    _ctrlreg_sdo = 1;               	// SDO pin active: 0 -> inactive
      
-    // reset();
+    reset();
    
-    // if (not writeControlRegister())
-    // {
-    //   	isConfig = false;
-    //     return false;
-    // }
+    if (not writeControlRegister())
+    {
+      	isConfig = false;
+        return false;
+    }
         
    
-    // isConfig = true;
+    isConfig = true;
     
-    // return true;
+    return true;
 
 }
 
@@ -234,9 +234,9 @@ char* DDS_function::freq2binary(float freq, float mclock)
 	return bytevalue;
 }
 
-void DDS_function::print(char* msg){
+void DDS_function::print(char* msg, char dim){
 
-	int x=strlen(msg);
+	int x=dim;
 	Serial.print("[");
 	for (int i=0; i<x-1;i++)
 	{
