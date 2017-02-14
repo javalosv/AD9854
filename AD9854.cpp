@@ -37,7 +37,7 @@ int DDS::init()
 
     _clock = 60000000;        			// Work clock in MHz
 
-    _ctrlreg_multiplier = 4;        	// Multiplier 4- 20
+    _ctrlreg_multiplier = 2;        	// Multiplier 4- 20
     _ctrlreg_mode = 0;              	// Single, FSK, Ramped FSK, Chirp, BPSK
     
     _ctrlreg_qdac_pwdn = 0;         	// QDAC power down enabled: 0 -> disable
@@ -52,12 +52,12 @@ int DDS::init()
    
     if (not writeControlRegister())
     {
-      	isConfig = false;
+      	_isConfig = false;
         return false;
     }
         
    
-    isConfig = true;
+    _isConfig = true;
     
     return true;
 
@@ -136,6 +136,35 @@ int DDS::writeData(char addr, char ndata, const char* data){
     return 1;
 }
 
+int DDS::writeDataAndVerify(char addr, char ndata, const char* wr_spi_data ){
+	
+    int    success;
+    char*  rd_spi_data;
+	
+    writeData(addr, ndata, wr_spi_data);
+    rd_spi_data = readData(addr, ndata);
+	
+    success = 1;
+	
+    for(char i = 0; i < ndata; i++)
+    {
+        if (wr_spi_data[i] != rd_spi_data[i])
+        {
+            success = 0;
+            break;
+        }
+		
+    }
+
+	//Update Control Register
+    if ((success == 1) && (addr==0x07)){
+        _ctrlreg_multiplier = rd_spi_data[1] & 0x1F;
+        _ctrlreg_mode = (rd_spi_data[2] & 0x0E) >> 1;
+    }
+	
+	return success;
+}
+
 int DDS::writeControlRegister(){
 	
     bool success;
@@ -177,7 +206,7 @@ char* DDS::getControlRegister()
     bool pll_range = 0;
     bool pll_bypass = 1;
     
-    if (_ctrlreg_multiplier >= 4){
+    if (_ctrlreg_multiplier >= 4 && _ctrlreg_multiplier<=12){
         pll_bypass = 0;
     }
  
@@ -193,6 +222,214 @@ char* DDS::getControlRegister()
     return controlRegister;
     
 }
+
+char* DDS::rdMode()
+{
+	
+    char* rd_data;
+    char* rd_mode;
+    char mode;
+	
+    rd_data = readData(0x07, 4);
+    mode = (rd_data[2] & 0x0E) >> 1;
+    rd_mode[0] = mode;
+	
+    return rd_mode;
+}
+	
+char* DDS::rdMultiplier()
+{
+	
+    char* rd_data;
+    char* rd_multiplier;
+    char mult;
+	
+    rd_data = readData(0x07, 4);
+    mult = (rd_data[1] & 0x1F);
+    rd_multiplier[0]=mult;
+    
+    return rd_multiplier;    
+}
+
+char* DDS::rdPhase1()
+{
+
+    char* rd_data;
+    rd_data = readData(0x00, 2);
+    return rd_data;
+}
+
+char* DDS::rdPhase2()
+{
+ 
+    char* rd_data;
+    rd_data = readData(0x01, 2);
+    return rd_data;
+}
+
+char* DDS::rdFrequency1()
+{
+ 
+    char* rd_data;
+    rd_data = readData(0x02, 6);
+    for (int i=0; i<6; i++)	
+    	_frequency1[i] = rd_data[i];
+
+    return rd_data;
+	
+}
+
+char* DDS::rdFrequency2()
+{
+
+    char* rd_data;
+    rd_data = readData(0x03, 6);
+    for (int i=0; i<6; i++)
+        _frequency2[i] = rd_data[i];
+
+    return rd_data;
+}
+
+///////////////////////
+
+char* DDS::rdAmplitudeI()
+{
+
+    char* rd_data;
+    rd_data = readData(0x08, 2);
+	
+    return rd_data;
+}
+
+char* DDS::rdAmplitudeQ()
+{
+
+    char* rd_data;
+    rd_data = readData(0x09, 2);
+    return rd_data;
+}
+ 
+int DDS::isRFEnabled()
+{
+	
+    if (_rf_enabled)
+        return 1;
+	
+    return 0;
+}
+	
+int DDS::wrMode(char mode)
+{
+	
+    _ctrlreg_mode= mode & 0x07;
+	
+    return writeControlRegister();
+}
+ 
+int DDS::wrMultiplier(char multiplier, float clock)
+{
+    _ctrlreg_multiplier = multiplier & 0x1F;
+    _clock = clock;
+    return writeControlRegister();
+}
+		
+int DDS::wrPhase1(char* phase)
+{
+
+    return writeDataAndVerify(0x00, 2, phase);
+}
+	
+int DDS::wrPhase2(char* phase)
+{
+	
+    return writeDataAndVerify(0x01, 2, phase);
+}
+	
+int DDS::wrFrequency1(char* freq)
+{
+
+    int sts;
+    sts =  writeDataAndVerify(0x02, 6, freq);
+	
+	if (sts){
+        for (int i=0; i<6; i++)
+            _frequency1[i] = freq[i];
+    }
+
+    return sts;
+}
+
+int DDS::wrFrequency2(char* freq)
+{
+
+    int sts;
+    sts = writeDataAndVerify(0x03, 6, freq);
+	
+	if (sts){
+        for (int i=0; i<6; i++)
+            _frequency2[i] = freq[i];
+    }
+
+    return sts;
+}
+ 
+int DDS::wrAmplitudeI(char* amplitude)
+{
+	
+    _amplitudeI[0] = amplitude[0];
+    _amplitudeI[1] = amplitude[1];
+	
+    _rf_enabled = true;
+	
+    return writeDataAndVerify(0x08, 2, amplitude);
+}
+ 
+int DDS::wrAmplitudeQ(char* amplitude)
+{
+	
+    _amplitudeQ[0] = amplitude[0];
+    _amplitudeQ[1] = amplitude[1];
+	 
+    _rf_enabled = true;
+	
+    return writeDataAndVerify(0x09, 2, _amplitudeQ);
+}
+ 
+int DDS::enableRF()
+{
+	
+    _rf_enabled = true;
+    writeDataAndVerify(0x08, 2, _amplitudeI);
+
+    return writeDataAndVerify(0x09, 2, _amplitudeQ);
+}
+ 
+int DDS::disableRF()
+{
+    
+    _rf_enabled = false;
+    writeDataAndVerify(0x08, 2, "\x00\x00");
+
+    return writeDataAndVerify(0x09, 2, "\x00\x00");
+	
+}
+	   
+int DDS::defaultSettings()
+{
+
+    wrMultiplier(1, 0.0);
+    wrAmplitudeI("\x0F\xC0");                //0xFC0 produces best SFDR than 0xFFF
+    wrAmplitudeQ("\x0F\xC0");                        //0xFC0 produces best SFDR than 0xFFF    
+    wrFrequency1("\x00\x00\x00\x00\x00\x00");        // 49.92 <> 0x3f 0xe5 0xc9 0x1d 0x14 0xe3 <> 49.92/clock*(2**48) \x3f\xe5\xc9\x1d\x14\xe3
+    wrFrequency2("\x00\x00\x00\x00\x00\x00");
+    wrPhase1("\x00\x00");                            //0 grados
+    wrPhase2("\x20\x00");                            //180 grados <> 0x20 0x00 <> 180/360*(2**14)
+    disableRF();
+		
+	return wrMode(4);                                //BPSK mode
+	
+}
+
 /*
 ########################################################################
 ########################################################################
@@ -247,86 +484,59 @@ void DDS_function::print(char* msg, char dim){
 	Serial.print(msg[x-1], HEX);
 	Serial.println("]");
 }
+
+
+bool DDS::wasInitialized()
+{
 	
+    return _isConfig;
+}
  
-// int DDS::__writeDataAndVerify(char addr, char ndata, const char* wr_spi_data, SerialDriver *screen){
-	
-//     int    success;
-//     char*  rd_spi_data;
-	
-//     this->__writeData(addr, ndata, wr_spi_data);
-//     rd_spi_data = this->__readData(addr, ndata);
-	
-//     success = 1;
-	
-//     for(char i = 0; i < ndata; i++)
-//     {
-//         if (screen != NULL){
-//             screen->putc(wr_spi_data[i]);
-//             screen->putc(0x3D);
-//             screen->putc(rd_spi_data[i]);
-//         }
-		
-//         if (wr_spi_data[i] != rd_spi_data[i])
-//         {
-//             success = 0;
-//             break;
-//         }
-		
-//     }
-	
-//     //Update Control Register
-//     if ((success == 1) && (addr==0x07)){
-//         cr_multiplier = rd_spi_data[1] & 0x1F;
-//         cr_mode = (rd_spi_data[2] & 0x0E) >> 1;
-//     }
-//     //printf("\r\nSuccessful writting = %d\r\n", success);
-	
-//     return success;
-// }
+char DDS::getMultiplier()
+{
+    return _ctrlreg_multiplier;
+}
  
-// char* DDS::__getControlRegister(){
+double DDS::getFreqFactor1()
+{
+
+    _factor_freq1 = ((double)_frequency1[0])/256.0 + ((double)_frequency1[1])/65536.0  + ((double)_frequency1[2])/16777216.0 + ((double)_frequency1[3])/4294967296.0;
+    _factor_freq1 *= ((double)_ctrlreg_multiplier);
 	
-//     bool pll_range = 0;
-//     bool pll_bypass = 1;
-	
-//     if (cr_multiplier >= 4){
-//         pll_bypass = 0;
-//     }
+    return _factor_freq1;
+}
  
-//     if (clock >= 200){
-//         pll_range = 1;
-//     }
-	   
-//     controlRegister[0] = 0x10 + cr_qdac_pwdn*4;
-//     controlRegister[1] = pll_range*64 + pll_bypass*32 + (cr_multiplier & 0x1F);
-//     controlRegister[2] = (cr_mode & 0x07)*2 + cr_ioupdclk;
-//     controlRegister[3] = cr_inv_sinc*64 + cr_osk_en*32 + cr_osk_int*16 + cr_msb_lsb*2 + cr_sdo;
+double DDS::getFreqFactor2(){
+    _factor_freq2 = ((double)_frequency2[0])/256.0 + ((double)_frequency2[1])/65536.0  + ((double)_frequency2[2])/16777216.0 + ((double)_frequency2[3])/4294967296.0;
+    _factor_freq2 *= ((double)_ctrlreg_multiplier);
 	
-//     return controlRegister;
+    return _factor_freq2;
+}
+ 
+char DDS::getMode()
+{
+
+    return _ctrlreg_mode;   
+}
+ 
+char* DDS::getModeStr()
+{
 	
-//     }
+    if (_ctrlreg_mode > 4)
 	
+    return MODULATION[_ctrlreg_mode];   
+}
+
+
+
+ /*
+########################################################################
+########################################################################
+########################################################################
+*/
+
+ 
 				
-// int DDS::reset(){
-	
-//     // Master reset
-//     //Set as a input, temporary
-//     //printf("\r\nChange updclk direction as an INPUT ...\r\n");
-//     dds_updclk->input();
-//     dds_updclk->mode(PullDown);
-	
-//     //printf("\r\nReseting DDS ...\r\n");
-//     *dds_mreset = 1;
-//     wait_ms(1);
-//     *dds_mreset = 0;
-//     wait_ms(1);
-	
-//     this->rf_enabled = false;
-	
-//     return 0;
-//     }
-	
 // int DDS::scanIOUpdate(){
 	
 //     unsigned int cont = 0;
@@ -371,257 +581,8 @@ void DDS_function::print(char* msg, char dim){
 //     }
 	
 	
-// int DDS::init(){
-	
-//     //printf("\r\nSetting default parameters in CR ...\r\n");
-	
-//     //Serial mode enabled
-//     this->clock = 200.0;        // Work clock in MHz
-//     this->cr_multiplier = 4;        // Multiplier 4- 20
-//     this->cr_mode = 0;              // Single, FSK, Ramped FSK, Chirp, BPSK
-//     this->cr_qdac_pwdn = 0;         // QDAC power down enabled: 0 -> disable
-//     this->cr_ioupdclk = 0;          // IO Update clock direction: 0 -> input,  1 -> output
-//     this->cr_inv_sinc  = 0;         // Sinc inverser filter enable: 0 -> enable
-//     this->cr_osk_en = 1;            // Enable Amplitude multiplier: 0 -> disabled
-//     this->cr_osk_int = 0;           // register/counter output shaped control: 0 -> register, 1 -> counter
-//     this->cr_msb_lsb = 0;           // msb/lsb bit first: 0 -> MSB, 1 -> LSB
-//     this->cr_sdo = 1;               // SDO pin active: 0 -> inactive
  
-//     //printf("\r\nSetting in serial mode ...\r\n");
-//     *dds_sp_mode = 0;
-//     *dds_cs = 1;
-	 
-//     this->reset();
-	
-//     //printf("\r\nWritting CR ...\r\n");
-	
-//     if (not this->__writeControlRegister()){
-//         //printf("\r\nUnsuccessful DDS initialization");
-//         this->isConfig = false;
-//         return false;
-//         }
-		
-//     //printf("\r\nSuccessfull DDS initialization");
-	
-//     this->isConfig = true;
-	
-//     return true;
-// }
- 
-// char* DDS::rdMode(){
-	
-//     char* rd_data;
-//     char mode;
-	
-//     rd_data = this->__readData(0x07, 4);
-//     mode = (rd_data[2] & 0x0E) >> 1;
-	
-//     this->cr_mode = mode;
-	
-//     rd_data[0] = mode;
-	
-//     return rd_data;
-//     }
-	
-// char* DDS::rdMultiplier(){
-	
-//     char* rd_data;
-//     char mult;
-	
-//     rd_data = this->__readData(0x07, 4);
-//     mult = (rd_data[1] & 0x1F);
-//     this->cr_multiplier = mult;
-	
-//     //Reaconditioning data to return
-//     rd_data[0] = mult;
-//     rd_data[1] = ((int)clock >> 8) & 0xff; 
-//     rd_data[2] = (int)clock & 0xff; 
-	
-//     return rd_data;    
-//     }
-// char* DDS::rdPhase1(){
- 
-//     char* rd_data;
-	
-//     rd_data = this->__readData(0x00, 2);
-	
-//     return rd_data;
-	
-//     }
-// char* DDS::rdPhase2(){
- 
-//     char* rd_data;
-	
-//     rd_data = this->__readData(0x01, 2);
-	
-//     return rd_data;
-//     }
-// char* DDS::rdFrequency1(){
- 
-//     char* rd_data;
-	
-//     rd_data = this->__readData(0x02, 6);
-	
-//     for (int i=0; i<6; i++)
-//         frequency1[i] = rd_data[i];
-	
-//     return rd_data;
-	
-//     }
-// char* DDS::rdFrequency2(){
- 
-//     char* rd_data;
-	
-//     rd_data = this->__readData(0x03, 6);
-	
-//     for (int i=0; i<6; i++)
-//         frequency2[i] = rd_data[i];
-		
-//     return rd_data;
-//     }
-// char* DDS::rdAmplitudeI(){
- 
-//     char* rd_data;
-	
-//     rd_data = this->__readData(0x08, 2);
-	
-//     return rd_data;
-//     }
-// char* DDS::rdAmplitudeQ(){
- 
-//     char* rd_data;
-	
-//     rd_data = this->__readData(0x09, 2);
-	
-//     return rd_data;
-//     }
- 
-// int DDS::isRFEnabled(){
-	
-//     if (this->rf_enabled)
-//         return 1;
-	
-//     return 0;
-//     }
-	
-// int DDS::wrMode(char mode){
-	
-//     this->cr_mode = mode & 0x07;
-	
-//     return this->__writeControlRegister();
-//     }
- 
-// int DDS::wrMultiplier(char multiplier, float clock){
-	
-//     this->cr_multiplier = multiplier & 0x1F;
-//     this->clock = clock;
-	
-//     //printf("\r\n mult = %d, clock = %f", multiplier, clock);
-//     //printf("\r\n cr_mult = %d", cr_multiplier);
-	
-//     return this->__writeControlRegister();
-//     }
-		
-// int DDS::wrPhase1(char* phase, SerialDriver *screen){
-	
-//     return this->__writeDataAndVerify(0x00, 2, phase, screen);
-	
-//     }
-	
-// int DDS::wrPhase2(char* phase, SerialDriver *screen){
-	
-//     return this->__writeDataAndVerify(0x01, 2, phase, screen);
-	
-//     }
-	
-// int DDS::wrFrequency1(char* freq, SerialDriver *screen){
-//     int sts;
-	
-//     sts =  this->__writeDataAndVerify(0x02, 6, freq, screen);
-	
-//     if (sts){
-//         for (int i=0; i<6; i++)
-//             frequency1[i] = freq[i];
-//     }
-//     return sts;
-	
-//     }
-// int DDS::wrFrequency2(char* freq, SerialDriver *screen){
-//     int sts;
-	
-//     sts = this->__writeDataAndVerify(0x03, 6, freq, screen);
-	
-//     if (sts){
-//         for (int i=0; i<6; i++)
-//             frequency2[i] = freq[i];
-//     }
-//     return sts;
-//     }
- 
-// int DDS::wrAmplitudeI(char* amplitude, SerialDriver *screen){
-	
-//     amplitudeI[0] = amplitude[0];
-//     amplitudeI[1] = amplitude[1];
-	
-//     this->rf_enabled = true;
-	
-//     return this->__writeDataAndVerify(0x08, 2, amplitude, screen);
-	
-//     }
- 
-// int DDS::wrAmplitudeQ(char* amplitude, SerialDriver *screen){
-	
-//     amplitudeQ[0] = amplitude[0];
-//     amplitudeQ[1] = amplitude[1];
-	 
-//     this->rf_enabled = true;
-	
-//     return this->__writeDataAndVerify(0x09, 2, amplitude, screen);
-	
-//     }
- 
-// int DDS::enableRF(){
-	
-//     this->rf_enabled = true;
-	
-//     this->__writeDataAndVerify(0x08, 2, this->amplitudeI);
-//     return this->__writeDataAndVerify(0x09, 2, this->amplitudeQ);
- 
-//     }
- 
-// int DDS::disableRF(){
-	
-//     this->rf_enabled = false;
-	
-//     this->__writeDataAndVerify(0x08, 2, "\x00\x00");
-//     return this->__writeDataAndVerify(0x09, 2, "\x00\x00");
-	
-//     }
-	   
-// int DDS::defaultSettings(SerialDriver *screen){
-	
-//     if (!(screen == NULL)){
-//         screen->putc(0x37);
-//         screen->putc(0x30);
-//     }
-	
-//     this->wrMultiplier(1, 0.0);
-//     this->wrAmplitudeI("\x0F\xC0", screen);                //0xFC0 produces best SFDR than 0xFFF
-//     this->wrAmplitudeQ("\x0F\xC0");                        //0xFC0 produces best SFDR than 0xFFF    
-//     this->wrFrequency1("\x00\x00\x00\x00\x00\x00");        // 49.92 <> 0x3f 0xe5 0xc9 0x1d 0x14 0xe3 <> 49.92/clock*(2**48) \x3f\xe5\xc9\x1d\x14\xe3
-//     this->wrFrequency2("\x00\x00\x00\x00\x00\x00");
-//     this->wrPhase1("\x00\x00");                            //0 grados
-//     this->wrPhase2("\x20\x00");                            //180 grados <> 0x20 0x00 <> 180/360*(2**14)
-//     this->disableRF();
-		
-//     if (!(screen == NULL)){
-//         screen->putc(0x37);
-//         screen->putc(0x31);
-//     }
-	
-//     return this->wrMode(4);                                //BPSK mode
-	
-//     }
+
 	
 // char* DDS::setCommand(unsigned short cmd, char* payload, unsigned long payload_len){
 	
@@ -840,36 +801,3 @@ void DDS_function::print(char* msg, char dim){
 	
 //     }
  
-// bool DDS::wasInitialized(){
-	
-//     return this->isConfig;
-// }
- 
-// char DDS::getMultiplier(){
-//     return this->cr_multiplier;
-// }
- 
-// double DDS::getFreqFactor1(){
-//     factor_freq1 = ((double)frequency1[0])/256.0 + ((double)frequency1[1])/65536.0  + ((double)frequency1[2])/16777216.0 + ((double)frequency1[3])/4294967296.0;
-//     factor_freq1 *= ((double)this->cr_multiplier);
-	
-//     return factor_freq1;
-// }
- 
-// double DDS::getFreqFactor2(){
-//     factor_freq2 = ((double)frequency2[0])/256.0 + ((double)frequency2[1])/65536.0  + ((double)frequency2[2])/16777216.0 + ((double)frequency2[3])/4294967296.0;
-//     factor_freq2 *= ((double)this->cr_multiplier);
-	
-//     return factor_freq2;
-// }
- 
-// char DDS::getMode(){
-//     return this->cr_mode;   
-// }
- 
-// char* DDS::getModeStr(){
-	
-//     if (this->cr_mode > 4)
-	
-//     return MODULATION[this->cr_mode];   
-// }

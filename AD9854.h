@@ -37,8 +37,8 @@ class DDS{
 		bool            _ctrlreg_msb_lsb;     	// msb/lsb bit first: 0 -> MSB
 		bool            _ctrlreg_sdo;        		// SDO pin active: 0 -> inactive.
  
-		char            _freq1[6];
-		char            _freq2[6];
+		char            _frequency1[6];
+		char            _frequency2[6];
 		char            _phase1[2];
 		char            _phase2[2];       
 		char            _amplitudeI[2];
@@ -74,45 +74,45 @@ class DDS{
 		void on(int);
 		void off(int);
 
-		bool isConfig;
+		bool _isConfig;
 		
-		//int writeDataAndVerify(char addr, char ndata, const char* wr_spi_data, SerialDriver *screen=NULL);
+		int writeDataAndVerify(char addr, char ndata, const char* wr_spi_data);
 		char* getControlRegister();
 		int writeControlRegister();
 		int writeData(char, char, const char*);
 		char* readData(char, char);
-		// int scanIOUpdate();
-		// int find();
-		// char* rdMode();
-		// char* rdMultiplier();
-		// char* rdPhase1();
-		// char* rdPhase2();
-		// char* rdFrequency1();
-		// char* rdFrequency2();
-		// char* rdAmplitudeI();
-		// char* rdAmplitudeQ();
-		// int isRFEnabled();
-		// int wrMode(char mode);
-		// int wrMultiplier(char multiplier, float clock=200.0);
-		// int wrPhase1(char* phase, SerialDriver *screen=NULL);
-		// int wrPhase2(char* phase, SerialDriver *screen=NULL);
-		// int wrFrequency1(char* freq, SerialDriver *screen=NULL);
-		// int wrFrequency2(char* freq, SerialDriver *screen=NULL);
-		// int wrAmplitudeI(char* amplitude, SerialDriver *screen=NULL);
-		// int wrAmplitudeQ(char* amplitude, SerialDriver *screen=NULL);
-		// int enableRF();
-		// int disableRF();
-		// int defaultSettings(SerialDriver *screen=NULL);
-		// char* setCommand(unsigned short cmd, char* payload, unsigned long payload_len);
-		// char* getCmdAnswer();
-		// unsigned long getCmdAnswerLen();
-		// int setAllDevice(char* payload, SerialDriver *screen=NULL);
-		// bool wasInitialized();
-		// char getMultiplier();
-		// double getFreqFactor1();
-		// double getFreqFactor2();
-		// char getMode();
-		// char* getModeStr();
+		int scanIOUpdate();
+		int find();
+		char* rdMode();
+		char* rdMultiplier();
+		char* rdPhase1();
+		char* rdPhase2();
+		char* rdFrequency1();
+		char* rdFrequency2();
+		char* rdAmplitudeI();
+		char* rdAmplitudeQ();
+		int isRFEnabled();
+		int wrMode(char mode);
+		int wrMultiplier(char multiplier, float clock=200.0);
+		int wrPhase1(char* phase);
+		int wrPhase2(char* phase);
+		int wrFrequency1(char* freq);
+		int wrFrequency2(char* freq);
+		int wrAmplitudeI(char* amplitude);
+		int wrAmplitudeQ(char* amplitude);
+		int enableRF();
+		int disableRF();
+		int defaultSettings();
+		char* setCommand(unsigned short cmd, char* payload, unsigned long payload_len);
+		char* getCmdAnswer();
+		unsigned long getCmdAnswerLen();
+		int setAllDevice(char* payload);
+		bool wasInitialized();
+		char getMultiplier();
+		double getFreqFactor1();
+		double getFreqFactor2();
+		char getMode();
+		char* getModeStr();
 		
 };
 
