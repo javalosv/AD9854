@@ -65,7 +65,7 @@ class DDS{
 		
 		
 	public:
-		DDS(int, int, int, int, int, int );
+		DDS(int, int, int, int);
 		
 		int init();
 		int reset();
@@ -75,7 +75,7 @@ class DDS{
 		void off(int);
 
 		bool _isConfig;
-		
+		int  verifyconnection();
 		int writeDataAndVerify(char addr, char ndata, const char* wr_spi_data);
 		char* getControlRegister();
 		int writeControlRegister();
@@ -113,18 +113,13 @@ class DDS{
 		double getFreqFactor2();
 		char getMode();
 		char* getModeStr();
-		
+		char* rdControl();
+
+		BigNumber pow64bits(int, int );
+		double binary2freq(char*) ;
+		char* freq2binary(float);
+		void print(char*, char);
 };
 
-class DDS_function{
-private:
-
-public:
-	DDS_function();
-	BigNumber pow64bits(int, int );
-	char* freq2binary(float, float );
-	void print(char*, char);
-
-};
 
 #endif

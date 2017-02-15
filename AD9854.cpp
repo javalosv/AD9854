@@ -14,30 +14,28 @@ static char* ONE_MSG = "\x01";
 static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ", "Chirp        ", "BPSK         ", "Not Allowed  "};
  
 
- DDS::DDS(int CS, int UDCLK, int IO_RESET, int MRESET, int SPI_port, int SPI_delay)
+ DDS::DDS(int CS, int UDCLK, int IO_RESET, int MRESET)
 {
 	_dds_cs=CS;
 	_dds_udclk=UDCLK;
 	_dds_io_reset=IO_RESET;
 	_dds_mreset=MRESET;
-	_spi_device=SPI_port;
-	_spi_delay=SPI_delay;
+	_spi_delay=200;
+
+
+    pinMode(_dds_cs, OUTPUT);
+    pinMode(_dds_udclk, OUTPUT);
+    pinMode(_dds_io_reset, OUTPUT);
+    pinMode(_dds_mreset, OUTPUT);
+
+    BigNumber::begin();
 }
 
 int DDS::init()
 {
-	SPI.setModule(1);
-	SPI.setBitOrder(MSBFIRST);
-	SPI.begin();
-
-	pinMode(_dds_cs, OUTPUT);
-	pinMode(_dds_udclk, OUTPUT);
-	pinMode(_dds_io_reset, OUTPUT);
-	pinMode(_dds_mreset, OUTPUT);
-
     _clock = 60000000;        			// Work clock in MHz
 
-    _ctrlreg_multiplier = 2;        	// Multiplier 4- 20
+    _ctrlreg_multiplier = 4;        	// Multiplier 4- 20
     _ctrlreg_mode = 0;              	// Single, FSK, Ramped FSK, Chirp, BPSK
     
     _ctrlreg_qdac_pwdn = 0;         	// QDAC power down enabled: 0 -> disable
@@ -50,15 +48,18 @@ int DDS::init()
      
     reset();
    
+
     if (not writeControlRegister())
     {
       	_isConfig = false;
         return false;
     }
-        
-   
+
     _isConfig = true;
-    
+
+
+    //wrFrequency1(freq2binary(12480000));
+
     return true;
 
 }
@@ -111,6 +112,16 @@ char* DDS::readData(char addr, char ndata)
     return read_spi_data;
     
 }
+
+int  DDS::verifyconnection()
+{
+    char* rd_spi_data;
+    rd_spi_data = readData(0x07,4);
+    int success = 1;
+    if(rd_spi_data[0]==0 & rd_spi_data[1]==0 & rd_spi_data[2]==0 & rd_spi_data[3]==0 )
+        success=0;
+    return success;
+}       
 
 int DDS::writeData(char addr, char ndata, const char* data){
 
@@ -267,6 +278,17 @@ char* DDS::rdPhase2()
     return rd_data;
 }
 
+char* DDS::rdControl()
+{
+ 
+    char* rd_data;
+    rd_data = readData(0x87, 4);
+    for (int i=0; i<4; i++) 
+        _frequency1[i] = rd_data[i];
+
+    return rd_data;
+}
+
 char* DDS::rdFrequency1()
 {
  
@@ -372,7 +394,7 @@ int DDS::wrFrequency2(char* freq)
 
     return sts;
 }
- 
+
 int DDS::wrAmplitudeI(char* amplitude)
 {
 	
@@ -430,65 +452,10 @@ int DDS::defaultSettings()
 	
 }
 
-/*
-########################################################################
-########################################################################
-########################################################################
-*/
-
-DDS_function::DDS_function()
-{
-	BigNumber::begin(); 
-}
-
-BigNumber DDS_function::pow64bits(int a, int b)
-{
-	BigNumber result = 1;
-	BigNumber base = a;
-	for (int i = 0; i < b; i++) 
-	{
-		result = result * base;
-	}
-	return result;
-}
-
-char* DDS_function::freq2binary(float freq, float mclock) 
-{
-	DDS_function _x;
-	static char bytevalue[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-
-	BigNumber DesiredOut = freq;
-	BigNumber SYSCLK = mclock;
-	BigNumber a = 0;
-	BigNumber b = 256; // 2 bytes=16 bits
-	a = DesiredOut * _x.pow64bits(2, 48)/ SYSCLK;
-	int n = 5;
-	while (a != 0) 
-	{
-		bytevalue[n] =  byte(a % b);
-		a =  a / b;
-		n--;
-	}
-	return bytevalue;
-}
-
-void DDS_function::print(char* msg, char dim){
-
-	int x=dim;
-	Serial.print("[");
-	for (int i=0; i<x-1;i++)
-	{
-		Serial.print(msg[i], HEX);
-	 	Serial.print(", ");
-	}
-	Serial.print(msg[x-1], HEX);
-	Serial.println("]");
-}
-
 
 bool DDS::wasInitialized()
 {
-	
+    
     return _isConfig;
 }
  
@@ -502,14 +469,14 @@ double DDS::getFreqFactor1()
 
     _factor_freq1 = ((double)_frequency1[0])/256.0 + ((double)_frequency1[1])/65536.0  + ((double)_frequency1[2])/16777216.0 + ((double)_frequency1[3])/4294967296.0;
     _factor_freq1 *= ((double)_ctrlreg_multiplier);
-	
+    
     return _factor_freq1;
 }
  
 double DDS::getFreqFactor2(){
     _factor_freq2 = ((double)_frequency2[0])/256.0 + ((double)_frequency2[1])/65536.0  + ((double)_frequency2[2])/16777216.0 + ((double)_frequency2[3])/4294967296.0;
     _factor_freq2 *= ((double)_ctrlreg_multiplier);
-	
+    
     return _factor_freq2;
 }
  
@@ -521,10 +488,71 @@ char DDS::getMode()
  
 char* DDS::getModeStr()
 {
-	
+    
     if (_ctrlreg_mode > 4)
-	
+    
     return MODULATION[_ctrlreg_mode];   
+}
+
+/*
+########################################################################
+########################################################################
+########################################################################
+*/
+
+BigNumber DDS::pow64bits(int a, int b)
+{
+	BigNumber result = 1;
+	BigNumber base = a;
+	for (int i = 0; i < b; i++) 
+	{
+		result = result * base;
+	}
+	return result;
+}
+
+char* DDS::freq2binary(float freq) 
+{
+	//DDS _x;
+	static char bytevalue[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+
+	BigNumber DesiredOut = freq;
+	BigNumber SYSCLK = _clock;
+	BigNumber a = 0;
+	BigNumber b = 256; // 2 bytes=16 bits
+	a = DesiredOut * pow64bits(2, 48)/ SYSCLK;
+	int n = 5;
+	while (a != 0) 
+	{
+		bytevalue[n] =  byte(a % b);
+		a =  a / b;
+		n--;
+	}
+	return bytevalue;
+}
+
+void DDS::print(char* msg, char dim){
+
+	int x=dim;
+	Serial.print("[");
+	for (int i=0; i<x-1;i++)
+	{
+		Serial.print(msg[i], HEX);
+	 	Serial.print(", ");
+	}
+	Serial.print(msg[x-1], HEX);
+	Serial.println("]");
+}
+
+double DDS::binary2freq(char* fb) 
+{
+    double freq_number=0;
+    double value=0;
+
+
+    value= double(fb[0])*pow(2,40)+double(fb[1])*pow(2, 32)+double(fb[2])*pow(2, 24)+int(fb[3])*pow(2, 16)+int(fb[4])*pow(2, 8)+int(fb[5])*1;
+    freq_number=_clock*value/pow(2,48);
+    return freq_number;
 }
 
 
