@@ -14,14 +14,14 @@ static char* ONE_MSG = "\x01";
 static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ", "Chirp        ", "BPSK         ", "Not Allowed  "};
  
 
- DDS::DDS(int CS, int UDCLK, int IO_RESET, int MRESET)
+ DDS::DDS( int clock1,int CS, int UDCLK, int IO_RESET, int MRESET)
 {
 	_dds_cs=CS;
 	_dds_udclk=UDCLK;
 	_dds_io_reset=IO_RESET;
 	_dds_mreset=MRESET;
-	_spi_delay=200;
-
+	_spi_delay=150;
+    _clock=clock1;
 
     pinMode(_dds_cs, OUTPUT);
     pinMode(_dds_udclk, OUTPUT);
@@ -33,7 +33,6 @@ static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ",
 
 int DDS::init()
 {
-    _clock = 60000000;        			// Work clock in MHz
 
     _ctrlreg_multiplier = 4;        	// Multiplier 4- 20
     _ctrlreg_mode = 0;              	// Single, FSK, Ramped FSK, Chirp, BPSK
@@ -56,9 +55,6 @@ int DDS::init()
     }
 
     _isConfig = true;
-
-
-    //wrFrequency1(freq2binary(12480000));
 
     return true;
 
@@ -84,11 +80,13 @@ int DDS::io_reset()
 	return 1;
 }
 
-void DDS::on(int x) {
+void DDS::on(int x) 
+{
   digitalWrite(x, HIGH);
 }
 
-void DDS::off(int x) {
+void DDS::off(int x) 
+{
   digitalWrite(x, LOW);
 }
 
@@ -461,6 +459,9 @@ bool DDS::wasInitialized()
  
 char DDS::getMultiplier()
 {
+    if(_ctrlreg_multiplier<4 || _ctrlreg_multiplier >12)
+        _ctrlreg_multiplier=1;
+
     return _ctrlreg_multiplier;
 }
  
@@ -511,6 +512,11 @@ BigNumber DDS::pow64bits(int a, int b)
 	return result;
 }
 
+double DDS::getclock()
+{   
+    double clock=double(_clock);
+    return clock;
+}
 char* DDS::freq2binary(float freq) 
 {
 	//DDS _x;
@@ -531,7 +537,8 @@ char* DDS::freq2binary(float freq)
 	return bytevalue;
 }
 
-void DDS::print(char* msg, char dim){
+void DDS::print(char* msg, char dim)
+{
 
 	int x=dim;
 	Serial.print("[");
@@ -548,8 +555,6 @@ double DDS::binary2freq(char* fb)
 {
     double freq_number=0;
     double value=0;
-
-
     value= double(fb[0])*pow(2,40)+double(fb[1])*pow(2, 32)+double(fb[2])*pow(2, 24)+int(fb[3])*pow(2, 16)+int(fb[4])*pow(2, 8)+int(fb[5])*1;
     freq_number=_clock*value/pow(2,48);
     return freq_number;

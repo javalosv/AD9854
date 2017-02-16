@@ -24,7 +24,7 @@
  
 class DDS{
 	private:
-		float           _clock;              // Work frequency in MHz
+		double           _clock;              // Work frequency in MHz
 		
 		char            _ctrlreg_multiplier;      // Multiplier 4- 20
 		char            _ctrlreg_mode;            // Single, FSK, Ramped FSK, Chirp, BPSK
@@ -65,7 +65,7 @@ class DDS{
 		
 		
 	public:
-		DDS(int, int, int, int);
+		DDS(int, int, int, int, int);
 		
 		int init();
 		int reset();
@@ -91,6 +91,7 @@ class DDS{
 		char* rdFrequency2();
 		char* rdAmplitudeI();
 		char* rdAmplitudeQ();
+		double getclock();
 		int isRFEnabled();
 		int wrMode(char mode);
 		int wrMultiplier(char multiplier, float clock=200.0);
