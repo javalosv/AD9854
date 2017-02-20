@@ -14,7 +14,7 @@ static char* ONE_MSG = "\x01";
 static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ", "Chirp        ", "BPSK         ", "Not Allowed  "};
  
 
- DDS::DDS( int clock1,int CS, int UDCLK, int IO_RESET, int MRESET)
+ DDS::DDS( double clock1,int CS, int UDCLK, int IO_RESET, int MRESET)
 {
 	_dds_cs=CS;
 	_dds_udclk=UDCLK;
@@ -66,7 +66,7 @@ int DDS::reset()
 	delay(1);
 	off(_dds_mreset);
 	delay(1);
-
+    _rf_enabled=false;
 	return 1;
 }
 
@@ -228,7 +228,7 @@ char* DDS::getControlRegister()
     controlRegister[2] = (_ctrlreg_mode & 0x07)*2 + _ctrlreg_ioupdclk;
     controlRegister[3] = _ctrlreg_inv_sinc*64 + _ctrlreg_osk_int*32 + _ctrlreg_osk_int*16 + _ctrlreg_msb_lsb*2 + _ctrlreg_sdo;
     
-    return controlRegister;
+    return controlRegister;     
     
 }
 
@@ -501,41 +501,31 @@ char* DDS::getModeStr()
 ########################################################################
 */
 
-BigNumber DDS::pow64bits(int a, int b)
-{
-	BigNumber result = 1;
-	BigNumber base = a;
-	for (int i = 0; i < b; i++) 
-	{
-		result = result * base;
-	}
-	return result;
-}
 
 double DDS::getclock()
 {   
     double clock=double(_clock);
     return clock;
 }
-char* DDS::freq2binary(float freq) 
-{
-	//DDS _x;
-	static char bytevalue[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
-	BigNumber DesiredOut = freq;
-	BigNumber SYSCLK = _clock;
-	BigNumber a = 0;
-	BigNumber b = 256; // 2 bytes=16 bits
-	a = DesiredOut * pow64bits(2, 48)/ SYSCLK;
-	int n = 5;
-	while (a != 0) 
-	{
-		bytevalue[n] =  byte(a % b);
-		a =  a / b;
-		n--;
-	}
-	return bytevalue;
+
+char* DDS::freq2binary(double freq) 
+{
+    static char bytevalue[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+
+    double DesiredOut = freq, SYSCLK = _clock;
+    double a = 0, b = 256; // 2 bytes=16 bits
+    a = DesiredOut * pow(2, 48)/ SYSCLK;
+     int n = 5;
+    while (n >= 0) 
+    {
+        bytevalue[n] = byte(fmod(a,b));
+        a =  a / b;
+        n--;
+    }
+    return bytevalue;
 }
+
 
 void DDS::print(char* msg, char dim)
 {

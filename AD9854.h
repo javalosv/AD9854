@@ -65,7 +65,7 @@ class DDS{
 		
 		
 	public:
-		DDS(int, int, int, int, int);
+		DDS(double, int, int, int, int);
 		
 		int init();
 		int reset();
@@ -118,7 +118,7 @@ class DDS{
 
 		BigNumber pow64bits(int, int );
 		double binary2freq(char*) ;
-		char* freq2binary(float);
+		char* freq2binary(double);
 		void print(char*, char);
 };
 
