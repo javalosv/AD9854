@@ -1,5 +1,4 @@
 #include "AD9854.h"
-#include "BigNumber.h"
 #include <Energia.h>
 #include <SPI.h>
 
@@ -14,7 +13,7 @@ static char* ONE_MSG = "\x01";
 static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ", "Chirp        ", "BPSK         ", "Not Allowed  "};
  
 
- DDS::DDS( float clock1,int CS, int UDCLK, int IO_RESET, int MRESET)
+ DDS::DDS( float clock1, int CS, int UDCLK, int IO_RESET, int MRESET)
 {
 	_dds_cs=CS;
 	_dds_udclk=UDCLK;
@@ -22,6 +21,8 @@ static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ",
 	_dds_mreset=MRESET;
 	_spi_delay=150;
     _clock=clock1;
+
+    pinMode(_power, OUTPUT);
 
     pinMode(_dds_cs, OUTPUT);
     pinMode(_dds_udclk, OUTPUT);
@@ -44,6 +45,7 @@ int DDS::init()
     _ctrlreg_msb_lsb = 0;           	// msb/lsb bit first: 0 -> MSB, 1 -> LSB
     _ctrlreg_sdo = 1;               	// SDO pin active: 0 -> inactive
      
+    
     reset();
    
 
@@ -58,6 +60,8 @@ int DDS::init()
     return true;
 
 }
+
+
 
 int DDS::reset()
 {
