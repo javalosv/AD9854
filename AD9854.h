@@ -65,7 +65,7 @@ class DDS{
 		
 		
 	public:
-		DDS(double, int, int, int, int);
+		DDS(float, int, int, int, int);
 		
 		int init();
 		int reset();
@@ -91,7 +91,7 @@ class DDS{
 		char* rdFrequency2();
 		char* rdAmplitudeI();
 		char* rdAmplitudeQ();
-		double getclock();
+		float getclock();
 		int isRFEnabled();
 		int wrMode(char mode);
 		int wrMultiplier(char multiplier, float clock=200.0);
@@ -115,10 +115,9 @@ class DDS{
 		char getMode();
 		char* getModeStr();
 		char* rdControl();
-
-		BigNumber pow64bits(int, int );
+		double binary2decimal(char*);
 		double binary2freq(char*) ;
-		char* freq2binary(double);
+		char* freq2binary(float );
 		void print(char*, char);
 };
 

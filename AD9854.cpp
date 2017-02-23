@@ -14,7 +14,7 @@ static char* ONE_MSG = "\x01";
 static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ", "Chirp        ", "BPSK         ", "Not Allowed  "};
  
 
- DDS::DDS( double clock1,int CS, int UDCLK, int IO_RESET, int MRESET)
+ DDS::DDS( float clock1,int CS, int UDCLK, int IO_RESET, int MRESET)
 {
 	_dds_cs=CS;
 	_dds_udclk=UDCLK;
@@ -28,7 +28,6 @@ static char *MODULATION[6] = {"None         ", "FSK          ", "Ramped FSK   ",
     pinMode(_dds_io_reset, OUTPUT);
     pinMode(_dds_mreset, OUTPUT);
 
-    BigNumber::begin();
 }
 
 int DDS::init()
@@ -114,9 +113,14 @@ char* DDS::readData(char addr, char ndata)
 int  DDS::verifyconnection()
 {
     char* rd_spi_data;
+    delayMicroseconds(10);
     rd_spi_data = readData(0x07,4);
+    delayMicroseconds(10);
     int success = 1;
-    if(rd_spi_data[0]==0 & rd_spi_data[1]==0 & rd_spi_data[2]==0 & rd_spi_data[3]==0 )
+    print(rd_spi_data,4);
+    if(rd_spi_data[0]==0 & rd_spi_data[1]==0 & rd_spi_data[2]==0 & rd_spi_data[3]==0)  
+        success=0;
+    else if (rd_spi_data[0]==0xFF & rd_spi_data[1]==0xFF & rd_spi_data[2]==0xFF & rd_spi_data[3]==0xFF)
         success=0;
     return success;
 }       
@@ -502,25 +506,28 @@ char* DDS::getModeStr()
 */
 
 
-double DDS::getclock()
+float DDS::getclock()
 {   
-    double clock=double(_clock);
+    float clock=float(_clock);
     return clock;
 }
 
 
-char* DDS::freq2binary(double freq) 
+char* DDS::freq2binary(float freq) 
 {
     static char bytevalue[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
     double DesiredOut = freq, SYSCLK = _clock;
     double a = 0, b = 256; // 2 bytes=16 bits
     a = DesiredOut * pow(2, 48)/ SYSCLK;
-     int n = 5;
+    
+    int n = 5;
+    
     while (n >= 0) 
     {
-        bytevalue[n] = byte(fmod(a,b));
-        a =  a / b;
+        double x =floor(a/b);
+        bytevalue[n] = byte(a-b*x) ;
+        a=floor(a/b);
         n--;
     }
     return bytevalue;
@@ -543,11 +550,17 @@ void DDS::print(char* msg, char dim)
 
 double DDS::binary2freq(char* fb) 
 {
-    double freq_number=0;
-    double value=0;
-    value= double(fb[0])*pow(2,40)+double(fb[1])*pow(2, 32)+double(fb[2])*pow(2, 24)+int(fb[3])*pow(2, 16)+int(fb[4])*pow(2, 8)+int(fb[5])*1;
+    double freq_number=0, value=0;
+    value=binary2decimal(fb);
     freq_number=_clock*value/pow(2,48);
     return freq_number;
+}
+
+double DDS::binary2decimal(char* fb) 
+{
+    double value=0;
+    value= float(fb[0])*pow(2,40)+float(fb[1])*pow(2, 32)+float(fb[2])*pow(2, 24)+float(fb[3])*pow(2, 16)+float(fb[4])*pow(2, 8)+float(fb[5])*1;
+    return value;
 }
 
 
